@@ -14,6 +14,8 @@ echo "=== Compiling ==="
 rm -rf "$OUT_DIR"
 mkdir -p "$OUT_DIR"
 javac -proc:none -cp "$JAR" -d "$OUT_DIR" \
+    "$SRC_DIR/org/sarsoft/location/service/HamTracksParser.java" \
+    "$SRC_DIR/org/sarsoft/location/service/APRSSerialThread.java" \
     "$SRC_DIR/org/sarsoft/location/service/YaesuSerialThread.java" \
     "$SRC_DIR/org/sarsoft/location/service/APRSLocalEngine.java" \
     "$SRC_DIR/org/sarsoft/location/service/LocalLocationsService.java"
@@ -34,6 +36,8 @@ out_dir  = Path(sys.argv[2])
 tmp_path = jar_path + ".tmp"
 
 patches = {
+    "org/sarsoft/location/service/HamTracksParser.class",
+    "org/sarsoft/location/service/APRSSerialThread.class",
     "org/sarsoft/location/service/APRSLocalEngine.class",
     "org/sarsoft/location/service/YaesuSerialThread.class",
     "org/sarsoft/location/service/LocalLocationsService.class",
@@ -64,9 +68,10 @@ PYEOF
 echo ""
 echo "=== Done ==="
 echo ""
-echo "Two changes are now in desktop.jar:"
+echo "Three changes are now in desktop.jar:"
 echo "  1. Serial port scanning bug fixed — unconfigured ports are skipped."
 echo "  2. New 'yaesu' mode for Yaesu FTM-series two-line TNC2 format."
+echo "  3. HamTracks route packets ({{X\$HT) decoded and added to track."
 echo ""
 echo "To use Yaesu mode directly (no bridge script needed), set in topo.properties:"
 echo "  sarsoft.location.serial.ttyUSB0=9600,8,1,0"

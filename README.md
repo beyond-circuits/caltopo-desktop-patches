@@ -59,6 +59,27 @@ This replaces any need for a separate bridge script.
 
 ---
 
+### 4. HamTracks route packet support (`HamTracksParser.java` + `APRSSerialThread.java`)
+
+**Problem:** [HamTracks](https://github.com/venamartin/pitnc) is an Android app that records a GPS track and encodes it into each APRS beacon using a custom experimental packet type (`{{X$HT`). CalTopo silently drops these packets.
+
+**Fix:** New `HamTracksParser` class decodes the `{{X$HT` format and injects each track point as a `LocationReport`. Hooked into `APRSSerialThread.processLine()` so it works regardless of serial source type (standard TNC, Yaesu, KISS) with no configuration needed.
+
+**Packet format** (reverse-engineered from live captures):
+```
+CALLSIGN>DEST,...:{{X$HT,<unix_ts>,<geohash9>,<dt1>,<suffix1>,<dt2>,<suffix2>,...
+```
+- `unix_ts` — Unix epoch seconds for the current position
+- `geohash9` — 9-character geohash for current position (~2.4m precision)
+- Each `(dt_i, suffix_i)` pair encodes a historical position:
+  - timestamp = `unix_ts - dt_i` (larger dt = older)
+  - full geohash = `geohash9[0 : 9-len(suffix_i)] + suffix_i`
+- Suffix length is constant within a packet and grows as the track spreads geographically (3–5 chars observed)
+
+On each received packet, only positions newer than the last injected timestamp for that callsign are published, oldest first. This correctly handles any beacon interval and any number of recorded points between beacons.
+
+---
+
 ### 3. Location report logging at INFO level (`LocalLocationsService.java`)
 
 **Problem:** The "Local location report" log line (confirming a beacon was parsed and
@@ -79,7 +100,9 @@ LocalLocationsService [INFO] Local location report LOCAL:KN6TYR-7 @ 36.963,-122.
 | File | Status | Purpose |
 |------|--------|---------|
 | `src/.../APRSLocalEngine.java` | Modified | Serial port scan fix + Yaesu mode |
+| `src/.../APRSSerialThread.java` | Modified | HamTracks packet detection and dispatch |
 | `src/.../YaesuSerialThread.java` | New | Yaesu two-line TNC2 parser |
+| `src/.../HamTracksParser.java` | New | HamTracks `{{X$HT` route packet decoder |
 | `src/.../LocalLocationsService.java` | Modified | INFO-level location logging |
 | `src/.../LiveTracksService.java` | Experimental / not built | Auto-title from callsign (ineffective — UI sends empty string, not null; kept for reference) |
 
