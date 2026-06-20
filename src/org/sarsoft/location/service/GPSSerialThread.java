@@ -11,10 +11,15 @@ import org.sarsoft.location.LocationReport;
 /**
  * Reads NMEA 0183 sentences from a GPS receiver and publishes position reports.
  * Parses $GPRMC / $GNRMC sentences; skips void (no-fix) sentences.
+ * Only publishes a new point when movement exceeds MIN_DISTANCE_METERS.
  */
 public class GPSSerialThread extends APRSSerialThread {
 
+    private static final double MIN_DISTANCE_METERS = 10.0;
+
     private final String deviceId;
+    private double lastLat = Double.NaN;
+    private double lastLon = Double.NaN;
 
     public GPSSerialThread(InputStream stream, OutputStream outputStream,
                            ILocationReportPublisher reportSink, ILogger logger,
@@ -47,8 +52,15 @@ public class GPSSerialThread extends APRSSerialThread {
         try {
             double lat = nmeaToDecimal(f[3], f[4]);
             double lon = nmeaToDecimal(f[5], f[6]);
+
+            if (!Double.isNaN(lastLat) && distanceMeters(lastLat, lastLon, lat, lon) < MIN_DISTANCE_METERS) {
+                return;
+            }
+
             CTPoint pt = new CTPoint(lon, lat).withTime(System.currentTimeMillis());
             this.reportSink.reportLocation(new LocationReport(deviceId, pt));
+            lastLat = lat;
+            lastLon = lon;
         } catch (Exception e) {
             this.logger.i("GPS: error handling sentence: " + line);
         }
@@ -62,5 +74,12 @@ public class GPSSerialThread extends APRSSerialThread {
         double decimal = degrees + minutes / 60.0;
         if ("S".equals(hemisphere) || "W".equals(hemisphere)) decimal = -decimal;
         return decimal;
+    }
+
+    // Equirectangular approximation — accurate enough for small distances.
+    private static double distanceMeters(double lat1, double lon1, double lat2, double lon2) {
+        double dLat = Math.toRadians(lat2 - lat1);
+        double dLon = Math.toRadians(lon2 - lon1) * Math.cos(Math.toRadians((lat1 + lat2) / 2));
+        return Math.sqrt(dLat * dLat + dLon * dLon) * 6_371_000;
     }
 }
