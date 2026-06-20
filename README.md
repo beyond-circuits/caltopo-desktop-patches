@@ -104,14 +104,16 @@ port name. Most GPS receivers use 4800 baud (NMEA 0183 default).
 
 With multiple USB serial devices, port numbers (`ttyUSB0`, `ttyUSB1`) can swap between
 reboots. Create `/etc/udev/rules.d/99-caltopo-serial.rules` to assign stable symlinks
-based on USB vendor/product ID:
+based on USB vendor/product ID. `APRSLocalEngine` resolves these symlinks automatically —
+configure `topo.properties` using the symlink name (`gps`, `yaesu`) rather than the
+kernel device name (`ttyUSB0`, `ttyUSB1`):
 
 ```
-# GPS receiver (Prolific PL2303)
+# GPS receiver (Prolific PL2303, product 0x23a3)
 SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="23a3", SYMLINK+="gps"
 
-# Yaesu FTM-400 via SCU-20 cable (Silicon Labs CP2102)
-SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="yaesu"
+# Yaesu FTM-400 via SCU-20 cable (Prolific PL2303, product 0x2303)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="2303", SYMLINK+="yaesu"
 ```
 
 Then reload: `sudo udevadm control --reload-rules && sudo udevadm trigger`

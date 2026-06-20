@@ -5,6 +5,9 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.file.DirectoryStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.HashMap;
 import java.util.Iterator;
@@ -89,8 +92,21 @@ public class APRSLocalEngine {
             String configName = "sarsoft.location.serial." + shortPortName;
             String config = this.props.getProperty(configName);
             if (config == null || config.length() == 0) {
-                // Bug fix: skip ports with no explicit configuration rather than
-                // defaulting to 9600,8,1,0 and opening every UART on the system.
+                // The port's kernel name (e.g. ttyUSB0) isn't configured directly.
+                // Check if a udev symlink in /dev/ points to this device and is
+                // configured instead (e.g. /dev/gps -> ttyUSB0, config key "gps").
+                String alias = findDevAlias(shortPortName);
+                if (alias != null) {
+                    String aliasConfig = "sarsoft.location.serial." + alias;
+                    String aliasValue = this.props.getProperty(aliasConfig);
+                    if (aliasValue != null && aliasValue.length() > 0) {
+                        shortPortName = alias;
+                        configName = aliasConfig;
+                        config = aliasValue;
+                    }
+                }
+            }
+            if (config == null || config.length() == 0) {
                 this.logger.d("Port " + shortPortName + " not configured; skipping.");
                 continue;
             }
@@ -130,6 +146,22 @@ public class APRSLocalEngine {
             this.threads.put(portName, thread2);
             thread2.start();
         }
+    }
+
+    private String findDevAlias(String kernelName) {
+        try (DirectoryStream<Path> dir = Files.newDirectoryStream(Paths.get("/dev"))) {
+            for (Path entry : dir) {
+                if (Files.isSymbolicLink(entry)) {
+                    Path target = Files.readSymbolicLink(entry);
+                    if (target.getFileName().toString().equals(kernelName)) {
+                        return entry.getFileName().toString();
+                    }
+                }
+            }
+        } catch (Exception e) {
+            this.logger.d("Error scanning /dev for aliases: " + e.getMessage());
+        }
+        return null;
     }
 
     private InputStream maybeSetupLogFile(InputStream stream, String configName) {
