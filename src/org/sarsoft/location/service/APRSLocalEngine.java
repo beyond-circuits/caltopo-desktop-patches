@@ -100,8 +100,9 @@ public class APRSLocalEngine {
             }
             boolean kissMode  = Boolean.parseBoolean(this.props.getProperty(configName + ".kiss"));
             boolean yaesuMode = Boolean.parseBoolean(this.props.getProperty(configName + ".yaesu"));
+            boolean gpsMode   = Boolean.parseBoolean(this.props.getProperty(configName + ".gps"));
             this.logger.d("discovered serial port " + shortPortName +
-                (kissMode ? " (KISS mode)" : yaesuMode ? " (Yaesu mode)" : ""));
+                (kissMode ? " (KISS mode)" : yaesuMode ? " (Yaesu mode)" : gpsMode ? " (GPS mode)" : ""));
             String[] parts = config.split(",");
             port2.setComPortParameters(
                 Integer.parseInt(parts[0]),
@@ -119,6 +120,9 @@ public class APRSLocalEngine {
                 thread2 = new KissSerialThread(stream, writeStream, this.reportSink, this.logger);
             } else if (yaesuMode) {
                 thread2 = new YaesuSerialThread(stream, writeStream, this.reportSink, this.logger);
+            } else if (gpsMode) {
+                String gpsName = this.props.getProperty(configName + ".gps.name", shortPortName);
+                thread2 = new GPSSerialThread(stream, writeStream, this.reportSink, this.logger, gpsName);
             } else {
                 thread2 = new APRSSerialThread(stream, writeStream, this.reportSink, this.logger);
             }

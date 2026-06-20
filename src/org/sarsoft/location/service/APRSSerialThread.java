@@ -16,7 +16,7 @@ import org.sarsoft.location.LocationReport;
 
 public class APRSSerialThread extends Thread {
     private final OutputStream outputStream;
-    private final ILocationReportPublisher reportSink;
+    protected final ILocationReportPublisher reportSink;
     protected final ILogger logger;
     protected final InputStream stream;
 

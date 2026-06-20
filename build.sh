@@ -17,6 +17,7 @@ javac -proc:none -cp "$JAR" -d "$OUT_DIR" \
     "$SRC_DIR/org/sarsoft/location/service/HamTracksParser.java" \
     "$SRC_DIR/org/sarsoft/location/service/APRSSerialThread.java" \
     "$SRC_DIR/org/sarsoft/location/service/YaesuSerialThread.java" \
+    "$SRC_DIR/org/sarsoft/location/service/GPSSerialThread.java" \
     "$SRC_DIR/org/sarsoft/location/service/APRSLocalEngine.java" \
     "$SRC_DIR/org/sarsoft/location/service/LocalLocationsService.java"
 
@@ -40,6 +41,7 @@ patches = {
     "org/sarsoft/location/service/APRSSerialThread.class",
     "org/sarsoft/location/service/APRSLocalEngine.class",
     "org/sarsoft/location/service/YaesuSerialThread.class",
+    "org/sarsoft/location/service/GPSSerialThread.class",
     "org/sarsoft/location/service/LocalLocationsService.class",
 }
 

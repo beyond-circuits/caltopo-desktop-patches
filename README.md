@@ -80,7 +80,45 @@ On each received packet, only positions newer than the last injected timestamp f
 
 ---
 
-### 3. Location report logging at INFO level (`LocalLocationsService.java`)
+### 3. USB GPS receiver support (`GPSSerialThread.java` + `APRSLocalEngine.java`)
+
+**Problem:** CalTopo Desktop has no way to use a locally-attached USB GPS receiver to
+track your own position, unlike the mobile app which reports location automatically.
+
+**Fix:** New `GPSSerialThread` class reads NMEA 0183 sentences from a GPS receiver and
+publishes position reports via the same `LOCAL:` mechanism the mobile app uses. Parses
+`$GPRMC`/`$GNRMC` sentences; silently skips void sentences until a fix is acquired.
+The track appears in Shared Locations with a configurable name.
+
+**Configuration** (`topo.properties`):
+```properties
+sarsoft.location.serial.gps=4800,8,1,0
+sarsoft.location.serial.gps.gps=true
+sarsoft.location.serial.gps.gps.name=Pete
+```
+
+The `.gps.name` property sets the title shown on the map. If omitted, defaults to the
+port name. Most GPS receivers use 4800 baud (NMEA 0183 default).
+
+**Recommended: stable device names via udev**
+
+With multiple USB serial devices, port numbers (`ttyUSB0`, `ttyUSB1`) can swap between
+reboots. Create `/etc/udev/rules.d/99-caltopo-serial.rules` to assign stable symlinks
+based on USB vendor/product ID:
+
+```
+# GPS receiver (Prolific PL2303)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="067b", ATTRS{idProduct}=="23a3", SYMLINK+="gps"
+
+# Yaesu FTM-400 via SCU-20 cable (Silicon Labs CP2102)
+SUBSYSTEM=="tty", ATTRS{idVendor}=="10c4", ATTRS{idProduct}=="ea60", SYMLINK+="yaesu"
+```
+
+Then reload: `sudo udevadm control --reload-rules && sudo udevadm trigger`
+
+---
+
+### 4. Location report logging at INFO level (`LocalLocationsService.java`)
 
 **Problem:** The "Local location report" log line (confirming a beacon was parsed and
 dispatched to the map) was at DEBUG level, buried in verbose output.
@@ -99,9 +137,10 @@ LocalLocationsService [INFO] Local location report LOCAL:KN6TYR-7 @ 36.963,-122.
 
 | File | Status | Purpose |
 |------|--------|---------|
-| `src/.../APRSLocalEngine.java` | Modified | Serial port scan fix + Yaesu mode |
-| `src/.../APRSSerialThread.java` | Modified | HamTracks packet detection and dispatch |
+| `src/.../APRSLocalEngine.java` | Modified | Serial port scan fix + Yaesu + GPS mode |
+| `src/.../APRSSerialThread.java` | Modified | HamTracks dispatch; `reportSink` protected for subclasses |
 | `src/.../YaesuSerialThread.java` | New | Yaesu two-line TNC2 parser |
+| `src/.../GPSSerialThread.java` | New | NMEA 0183 GPS receiver parser |
 | `src/.../HamTracksParser.java` | New | HamTracks `{{X$HT` route packet decoder |
 | `src/.../LocalLocationsService.java` | Modified | INFO-level location logging |
 | `src/.../LiveTracksService.java` | Experimental / not built | Auto-title from callsign (ineffective — UI sends empty string, not null; kept for reference) |
@@ -142,8 +181,14 @@ The script:
 
 ```properties
 sarsoft.location.aprs.local.enabled=true
-sarsoft.location.serial.ttyUSB0=9600,8,1,0
-sarsoft.location.serial.ttyUSB0.yaesu=true
+
+sarsoft.location.serial.gps=4800,8,1,0
+sarsoft.location.serial.gps.gps=true
+sarsoft.location.serial.gps.gps.name=Pete
+
+sarsoft.location.serial.yaesu=9600,8,1,0
+sarsoft.location.serial.yaesu.yaesu=true
+
 log4j.logger.aprs.name=org.sarsoft.location
 log4j.logger.aprs.level=INFO
 ```
